@@ -60,8 +60,14 @@ if uploaded_file:
         # 生成透视表
         pivot_df = df.pivot_table(index='date', columns='machine', values='capacity', aggfunc='sum').fillna(0).reset_index()
 
-        # 强制日期格式统一为字符串形式
-        pivot_df['date'] = pd.to_datetime(pivot_df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
+        # 日期列兼容处理：Excel序列号 or 已格式化日期
+        if pd.api.types.is_numeric_dtype(pivot_df['date']):
+            pivot_df['date'] = pd.to_datetime(pivot_df['date'], origin='1899-12-30', unit='D', errors='coerce')
+        else:
+            pivot_df['date'] = pd.to_datetime(pivot_df['date'], errors='coerce')
+
+        # 最终格式化为 yyyy-mm-dd
+        pivot_df['date'] = pivot_df['date'].dt.strftime('%Y-%m-%d')
 
         st.success("✅ 处理完成！你可以下载下方结果表格：")
         st.dataframe(pivot_df)
