@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Aug  4 01:22:22 2025
-
 @author: bookn
 """
 
@@ -25,6 +24,7 @@ if uploaded_file:
         else:
             df = pd.read_csv(uploaded_file)
 
+        # 清洗列名
         df.columns = df.columns.str.replace(r'\n', '', regex=True).str.strip()
         df = df.rename(columns={
             df.columns[0]: 'date',
@@ -35,12 +35,14 @@ if uploaded_file:
             df.columns[12]: 'antistatic'
         })
 
+        # 清洗数据
         df = df[df['date'].notnull() & df['machine'].astype(str).str.contains('HJ', na=False)]
         df['large_rolls'] = pd.to_numeric(df['large_rolls'], errors='coerce').fillna(0)
         df['thickness'] = pd.to_numeric(df['thickness'], errors='coerce').fillna(0)
         df['antistatic'] = df['antistatic'].astype(str).str.upper().str.strip()
         df['manufacturer'] = df['manufacturer'].astype(str).str.strip()
 
+        # 乘数逻辑
         def compute_multiplier(row):
             if row['machine'] == '4HJ':
                 return 1
@@ -55,14 +57,16 @@ if uploaded_file:
         df['multiplier'] = df.apply(compute_multiplier, axis=1)
         df['capacity'] = df['large_rolls'] * df['multiplier']
 
+        # 生成透视表
         pivot_df = df.pivot_table(index='date', columns='machine', values='capacity', aggfunc='sum').fillna(0).reset_index()
-        pivot_df['date'] = pd.to_datetime(pivot_df['date'], origin='1899-12-30', unit='D', errors='ignore')
+
+        # 强制日期格式统一为字符串形式
         pivot_df['date'] = pd.to_datetime(pivot_df['date'], errors='coerce').dt.strftime('%Y-%m-%d')
 
         st.success("✅ 处理完成！你可以下载下方结果表格：")
         st.dataframe(pivot_df)
 
-        # Download link
+        # 下载链接
         csv = pivot_df.to_csv(index=False, encoding='utf-8-sig')
         st.download_button("📥 下载产能汇总 CSV", csv, file_name="output_capacity.csv", mime="text/csv")
 
